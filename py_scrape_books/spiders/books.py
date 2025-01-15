@@ -1,6 +1,8 @@
 import scrapy
 from scrapy.http import Response
 
+from py_scrape_books.items import PyScrapeBooksItem
+
 
 class BooksSpider(scrapy.Spider):
     name = "books"
@@ -22,11 +24,7 @@ class BooksSpider(scrapy.Spider):
         if next_page is not None:
             yield response.follow(next_page, callback=self.parse)
 
-    def _parse_page_book_detail(self, response: Response) -> dict:
-        in_stock = False
-        if response.css(".icon-ok").get():
-            in_stock = True
-
+    def _get_rating(self, response: Response) -> str:
         stars = {
             "One": 1,
             "Two": 2,
@@ -35,16 +33,27 @@ class BooksSpider(scrapy.Spider):
             "Five": 5,
         }
         classes = response.css(".star-rating").xpath("@class").extract()
-        rating = stars[classes[0].split()[1]]
-        yield {
-            "title": response.css("h1::text").get(),
-            "amount_in_stock" : int(
-                response.css(".instock").get().split(" ")[21].replace("(", "")
-            ) if in_stock else 0,
-            "rating": rating,
-            "category": response.css(".breadcrumb li a::text").getall()[2],
-            "description": response.css(
-                "#product_description + *::text"
-            ).get(),
-            "upc": response.css("td::text").get(),
-        }
+        return stars[classes[0].split()[1]]
+
+    def _parse_page_book_detail(self, response: Response) -> dict:
+        in_stock = False
+        if response.css(".icon-ok").get():
+            in_stock = True
+
+        yield PyScrapeBooksItem(
+            title=response.css("h1::text").get(),
+            price=response.css(".price_color::text").get(),
+            amount_in_stock=(
+                int(
+                    response.css(".instock")
+                    .get()
+                    .split(" ")[21].replace("(", "")
+                )
+                if in_stock
+                else 0
+            ),
+            rating=self._get_rating(response),
+            category=response.css(".breadcrumb li a::text").getall()[2],
+            description=response.css("#product_description + *::text").get(),
+            upc=response.css("td::text").get(),
+        )
