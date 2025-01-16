@@ -1,5 +1,6 @@
 import scrapy
 from scrapy.http import Response
+from scrapy.selector import SelectorList
 
 from py_scrape_books.items import PyScrapeBooksItem
 
@@ -9,7 +10,7 @@ class BooksSpider(scrapy.Spider):
     allowed_domains = ["books.toscrape.com"]
     start_urls = ["https://books.toscrape.com"]
 
-    def parse(self, response: Response, **kwargs) -> {}:
+    def parse(self, response: SelectorList, **kwargs) -> {}:
         for quote in response.css(".product_pod"):
             absolute_url = response.urljoin(
                 quote.css("h3 a::attr(href)").get()
